@@ -20,6 +20,7 @@ if __name__ == '__main__':
     #实例化MQ
     rabbitmq = RabbitMQ()
     rabbitmq.produce_sysinfo(sys_info_data)
+    print(sys_info_data)
 
     print("Agent同步系统信息结束.....")
     #获取MAC地址
@@ -28,7 +29,7 @@ if __name__ == '__main__':
     heartcheck = HeartCheck(mac_address,rabbitmq)
     heartcheck.start()
 
-    print("Agent准备接收信息.........")
+    print("Agent准备接收信息... ")
     rabbitmq = RabbitMQ()
     recevie_cmd = ReceiveCmd(rabbitmq,mac_address)
     recevie_cmd.start()

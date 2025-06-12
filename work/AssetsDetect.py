@@ -46,7 +46,7 @@ class AssetsDetect(threading.Thread):
 
         if app == 1:
             self.__detect_app()
-            pass
+
 
 
     #检测账户
@@ -81,7 +81,7 @@ class AssetsDetect(threading.Thread):
         # 转换成JSON字符串
         account_data = json.dumps(account_list)
         #加密
-        encrypted_account_data = EncryptUtil.encrypt_json(account_list, "thisIsASecretKey")
+        encrypted_account_data = EncryptUtil.encrypt_json(account_data, "thisIsASecretKey")
         print(account_data)
         #将探测到的信息发送到MQ
         self.__mq.produce_account_info(encrypted_account_data)
@@ -120,7 +120,7 @@ class AssetsDetect(threading.Thread):
                         res_list.append(nmap_res)
         # 转换成JSON字符串
         service_data = json.dumps(res_list)
-        encrypted_service_data = EncryptUtil.encrypt_json(res_list, "thisIsASecretKey")
+        encrypted_service_data = EncryptUtil.encrypt_json(service_data, "thisIsASecretKey")
         print(service_data)
         # 发送到队列
         self.__mq.produce_service_info(encrypted_service_data)
@@ -148,7 +148,7 @@ class AssetsDetect(threading.Thread):
         pythoncom.CoUninitialize()
         # 转换成JSON
         process_data = json.dumps(process_list)
-        encrypted_process_data = EncryptUtil.encrypt_json(process_list, "thisIsASecretKey")
+        encrypted_process_data = EncryptUtil.encrypt_json(process_data, "thisIsASecretKey")
         print(process_data)
         # 发送到队列
         self.__mq.produce_process_info(encrypted_process_data)
@@ -179,7 +179,7 @@ class AssetsDetect(threading.Thread):
                 break
         # 转换成JSON字符串
         app_data = json.dumps(software_list)
-        encrypted_app_data = EncryptUtil.encrypt_json(software_list, "thisIsASecretKey")
+        encrypted_app_data = EncryptUtil.encrypt_json(app_data, "thisIsASecretKey")
         print(app_data)
         # 发送到队列
         self.__mq.produce_app_info(encrypted_app_data)

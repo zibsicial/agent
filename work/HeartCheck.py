@@ -25,6 +25,7 @@ class HeartCheck(threading.Thread):
             try:
                 #发送心跳包
                 self.__mq.produce_status_info(status_data)
+                print("发送心跳包:",status_data)
                 #休眠3秒
                 time.sleep(3)
             except  Exception as e:

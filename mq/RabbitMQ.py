@@ -3,14 +3,14 @@ import json
 import pika
 
 from work.AssetsDetect import AssetsDetect
-
+from util.EncryptUtil import EncryptUtil
 
 class RabbitMQ:
     def __init__(self):
-        self.__host  = "192.168.198.128"
+        self.__host  = "192.168.169.134"
         self.__port  = "4568"
         self.__user  = "admin"
-        self.__password = "20250605"
+        self.__password = "20250606"
         self.__virtual_host = "my_vhost"
         self.__channel = ""
         self.__connection = ""
@@ -53,6 +53,8 @@ class RabbitMQ:
         :return:
         """
 
+        # 解密消息
+        message = EncryptUtil.decrypt_json(message.decode('utf-8'), "thisIsASecretKey")
         # JSON字符串转换成字典
         data = json.loads(message)
         # print(data)
