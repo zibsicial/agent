@@ -37,7 +37,7 @@ class AppRiskDetect(threading.Thread):
         host="localhost",
         port=3306,
         user="root",
-        password="040611",
+        password="root",
         database="threat_perception",
         cursorclass=pymysql.cursors.DictCursor
     )

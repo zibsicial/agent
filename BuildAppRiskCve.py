@@ -28,7 +28,7 @@ DB_CONF = dict(
     host="localhost",
     port=3306,
     user="root",
-    password="040611",
+    password="root",
     db="threat_perception",
     charset="utf8mb4"
 )

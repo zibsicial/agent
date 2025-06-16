@@ -5,13 +5,17 @@ import pika
 from work.AppRiskDetect import AppRiskDetect
 from work.AssetsDetect import AssetsDetect
 from util.EncryptUtil import EncryptUtil
+from work.HotfixDetect import HotfixDetect
+from work.VulnerabilityDetect import VulnerabilityDetect
+from work.WeakPasswordDetect import WeakPasswordDetect
+from work.RiskDetect import RiskDetect
 
 class RabbitMQ:
     def __init__(self):
-        self.__host  = "192.168.198.128"
+        self.__host  = "192.168.33.141"
         self.__port  = "4568"
         self.__user  = "admin"
-        self.__password = "20250605"
+        self.__password = "20250606"
         self.__virtual_host = "my_vhost"
         self.__channel = ""
         self.__connection = ""
@@ -46,24 +50,30 @@ class RabbitMQ:
         self.__channel.basic_publish(exchange=exchange, routing_key=routing_key, body=data)
 
     def __process_message(self, ch, method, properties, message):
-        """
-        处理消息
-        :param ch:
-        :param properties:
-        :param message:
-        :return:
-        """
+        msg_str = message.decode('utf-8')
+        print("收到消息内容:", msg_str)
+        try:
+            # 尝试直接解析为 JSON
+            data = json.loads(msg_str)
+        except Exception:
+            # 如果不是 JSON，说明是加密数据，先解密再解析
+            decrypted = EncryptUtil.decrypt_json(msg_str, "thisIsASecretKey")
+            data = json.loads(decrypted)
 
-        # 解密消息
-        message = EncryptUtil.decrypt_json(message.decode('utf-8'), "thisIsASecretKey")
-        # JSON字符串转换成字典
-        data = json.loads(message)
-        print(data)
-        # 判断类型
         if data['type'] == 'assets':
-            # 资产探测
-            assetsDetect = AssetsDetect(self, data)
-            assetsDetect.start()
+            assets_detect = AssetsDetect(self, data)
+            assets_detect.start()
+        if data['type'] == 'hotfix':
+            hotfix_detect = HotfixDetect(self, data)
+            hotfix_detect.start()
+        if data['type'] == 'risk':
+            # 风险探测
+            risk_detect = RiskDetect(self, data)
+            risk_detect.start()
+        if data['type'] == 'vulnerability':
+            # 漏洞探测
+            vulnerability_detect = VulnerabilityDetect(self, data)
+            vulnerability_detect.start()
         elif data['type'] == 'appRisk':
             # 应用风险探测
             appRiskDetect = AppRiskDetect(self, data)
@@ -161,7 +171,7 @@ class RabbitMQ:
         routing_key = 'app'
         self.__my_producer(exchange,routing_key,data)
 
-    def produce_hotfix_info(self,data):
+    def produce_hotfix_data(self,data):
         """
         生产者
         :param routing_key: 路由键
@@ -172,6 +182,15 @@ class RabbitMQ:
         exchange = 'sysinfo_exchange'
         routing_key = 'hotfix'
         self.__my_producer(exchange,routing_key,data)
+
+    def produce_risk_data(self, data):
+        """
+        生产风险检测数据
+        :param data: 风险检测结果（JSON字符串）
+        """
+        exchange = 'sysinfo_exchange'
+        routing_key = 'risk'
+        self.__my_producer(exchange, routing_key, data)
 
     def produce_appRisk_info(self, data):
         """
@@ -185,4 +204,14 @@ class RabbitMQ:
     def produce_weakPassword_data(self, data):
         exchange = 'sysinfo_exchange'
         routing_key = 'weakPassword'
-        self.__my_producter(exchange, routing_key, data)
+        self.__my_producer(exchange, routing_key, data)
+
+    def produce_vulnerability_data(self, data):
+
+        """
+        漏洞检测数据上报
+        :param data: 漏洞检测结果（JSON字符串）
+        """
+        exchange = 'sysinfo_exchange'
+        routing_key = 'vulnerability'
+        self.__my_producer(exchange, routing_key, data)
