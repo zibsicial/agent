@@ -1,3 +1,5 @@
+import os
+import time
 
 from system.SystemInfo import SystemInfo
 from mq.RabbitMQ import RabbitMQ
@@ -33,3 +35,6 @@ if __name__ == '__main__':
     rabbitmq = RabbitMQ()
     recevie_cmd = ReceiveCmd(rabbitmq,mac_address)
     recevie_cmd.start()
+
+
+
