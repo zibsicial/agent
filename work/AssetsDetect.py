@@ -184,3 +184,4 @@ class AssetsDetect(threading.Thread):
         # 发送到队列
         self.__mq.produce_app_info(encrypted_app_data)
         print("app数据探测结束！")
+

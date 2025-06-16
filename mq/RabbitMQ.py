@@ -2,15 +2,16 @@ import json
 
 import pika
 
+from work.AppRiskDetect import AppRiskDetect
 from work.AssetsDetect import AssetsDetect
 from util.EncryptUtil import EncryptUtil
 
 class RabbitMQ:
     def __init__(self):
-        self.__host  = "192.168.169.134"
+        self.__host  = "192.168.198.128"
         self.__port  = "4568"
         self.__user  = "admin"
-        self.__password = "20250606"
+        self.__password = "20250605"
         self.__virtual_host = "my_vhost"
         self.__channel = ""
         self.__connection = ""
@@ -57,12 +58,18 @@ class RabbitMQ:
         message = EncryptUtil.decrypt_json(message.decode('utf-8'), "thisIsASecretKey")
         # JSON字符串转换成字典
         data = json.loads(message)
-        # print(data)
+        print(data)
         # 判断类型
         if data['type'] == 'assets':
             # 资产探测
             assetsDetect = AssetsDetect(self, data)
             assetsDetect.start()
+        elif data['type'] == 'appRisk':
+            # 应用风险探测
+            appRiskDetect = AppRiskDetect(self, data)
+            #线程类直接start
+            appRiskDetect.start()
+
 
 
     def produce_sysinfo(self, data):
@@ -150,3 +157,22 @@ class RabbitMQ:
         routing_key = 'app'
         self.__my_producer(exchange,routing_key,data)
 
+    def produce_hotfix_info(self,data):
+        """
+        生产者
+        :param routing_key: 路由键
+        :param exchange: 交换机
+        :param data: 数据
+        :return:
+        """
+        exchange = 'sysinfo_exchange'
+        routing_key = 'hotfix'
+        self.__my_producer(exchange,routing_key,data)
+
+    def produce_appRisk_info(self, data):
+        """
+        应用信息上报（发到 sysinfo_exchange，routing_key = appRisk）
+        """
+        exchange = 'sysinfo_exchange'
+        routing_key = 'appRisk'
+        self.__my_producer(exchange, routing_key, data)

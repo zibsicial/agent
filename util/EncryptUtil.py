@@ -26,3 +26,5 @@ class EncryptUtil:
         cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
         decrypted_data = unpad(cipher.decrypt(ciphertext), AES.block_size)
         return decrypted_data.decode('utf-8')
+
+
