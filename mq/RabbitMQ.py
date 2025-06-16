@@ -69,6 +69,10 @@ class RabbitMQ:
             appRiskDetect = AppRiskDetect(self, data)
             #线程类直接start
             appRiskDetect.start()
+        elif data['type'] == 'weakPassword':
+            # 补丁探测
+            weakPassword_detect = WeakPasswordDetect(self, data)
+            weakPassword_detect.start()
 
 
 
@@ -176,3 +180,9 @@ class RabbitMQ:
         exchange = 'sysinfo_exchange'
         routing_key = 'appRisk'
         self.__my_producer(exchange, routing_key, data)
+
+
+    def produce_weakPassword_data(self, data):
+        exchange = 'sysinfo_exchange'
+        routing_key = 'weakPassword'
+        self.__my_producter(exchange, routing_key, data)
