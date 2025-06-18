@@ -42,7 +42,7 @@ class RiskDetect(threading.Thread):
 db_config = {
     "host": "localhost",
     "user": "root",
-    "password": "root",
+    "password": "040611",
     "database": "threat_perception",
     "charset": "utf8mb4"
 }

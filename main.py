@@ -31,6 +31,8 @@ if __name__ == '__main__':
     heartcheck = HeartCheck(mac_address,rabbitmq)
     heartcheck.start()
 
+    #每次启动主机，都进行一次日志检查
+
     print("Agent准备接收信息... ")
     rabbitmq = RabbitMQ()
     recevie_cmd = ReceiveCmd(rabbitmq,mac_address)
