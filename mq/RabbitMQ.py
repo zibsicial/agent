@@ -6,13 +6,16 @@ from work.AppRiskDetect import AppRiskDetect
 from work.AssetsDetect import AssetsDetect
 from util.EncryptUtil import EncryptUtil
 from work.HotfixDetect import HotfixDetect
+from work.LogDetect import LogDetect
 from work.VulnerabilityDetect import VulnerabilityDetect
 from work.WeakPasswordDetect import WeakPasswordDetect
 from work.RiskDetect import RiskDetect
 
 class RabbitMQ:
     def __init__(self):
+
         self.__host  = "192.168.133.133"
+
         self.__port  = "4568"
         self.__user  = "admin"
         self.__password = "20250606"
@@ -84,6 +87,17 @@ class RabbitMQ:
             weakPassword_detect = WeakPasswordDetect(self, data)
             weakPassword_detect.start()
 
+        elif data['type'] == 'log':
+            # 登录日志
+            # data 里应包含 mac_address、start_time、end_time
+            mac_address = data.get('mac_address')
+            start_time = data.get('start_time')
+            end_time = data.get('end_time')
+            log_detect = LogDetect(self, mac_address, start_time, end_time)
+            log_detect.start()
+
+
+
 
 
     def produce_sysinfo(self, data):
@@ -107,6 +121,24 @@ class RabbitMQ:
         exchange = 'sysinfo_exchange'
         routing_key = 'status'
         self.__my_producer(exchange,routing_key,data)
+
+    #登录日志
+    def produce_log_info(self, data):
+        """
+        发送登录日志到 log_queue
+        """
+        exchange = 'sysinfo_exchange'
+        routing_key = 'log'
+        self.__my_producer(exchange, routing_key, data)
+
+    #变更日志
+    def produce_change_info(self, data):
+        """
+        发送账号变更日志到 change_queue
+        """
+        exchange = 'sysinfo_exchange'
+        routing_key = 'change_queue'
+        self.__my_producer(exchange, routing_key, data)
 
 
     #新建一个消费来自MQ的方法
