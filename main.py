@@ -1,6 +1,6 @@
 import os
 import time
-
+from work.LogDetect import LogDetect
 from system.SystemInfo import SystemInfo
 from mq.RabbitMQ import RabbitMQ
 from work.HeartCheck import HeartCheck
@@ -31,7 +31,11 @@ if __name__ == '__main__':
     heartcheck = HeartCheck(mac_address,rabbitmq)
     heartcheck.start()
 
-    #每次启动主机，都进行一次日志检查
+    # rabbitmq = RabbitMQ()
+    # log_detect = LogDetect(rabbitmq, mac_address)
+    # log_detect.start()
+
+
 
     print("Agent准备接收信息... ")
     rabbitmq = RabbitMQ()
