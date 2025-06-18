@@ -28,6 +28,7 @@ if __name__ == '__main__':
     #获取MAC地址
     mac_address = sys_info.get_mac_address()
     #实例化心跳检测类
+    print("Agent 启动心跳线程...")
     heartcheck = HeartCheck(mac_address,rabbitmq)
     heartcheck.start()
 

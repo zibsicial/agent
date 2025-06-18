@@ -12,7 +12,7 @@ from work.RiskDetect import RiskDetect
 
 class RabbitMQ:
     def __init__(self):
-        self.__host  = "192.168.33.141"
+        self.__host  = "192.168.133.133"
         self.__port  = "4568"
         self.__user  = "admin"
         self.__password = "20250606"
