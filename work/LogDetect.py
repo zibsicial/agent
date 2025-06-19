@@ -23,7 +23,7 @@ class LogDetect(threading.Thread):
         while self.running:
             logs = self.get_log_info(
                 self.__event_path,
-                # event_id=4624,
+                event_id=4624,
                 start_time=self.__start_time,
                 end_time=self.__end_time
             )
