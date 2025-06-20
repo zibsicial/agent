@@ -23,7 +23,8 @@ class LogDetect(threading.Thread):
         while self.running:
             logs = self.get_log_info(
                 self.__event_path,
-                event_id=4624,
+                event_id=None,
+                # event_id=4624,
                 start_time=self.__start_time,
                 end_time=self.__end_time
             )
@@ -35,7 +36,7 @@ class LogDetect(threading.Thread):
                 print(encrypted)
                 self.__mq.produce_log_info(encrypted)
                 print("发送日志成功！！！")
-            time.sleep(60)
+            # time.sleep(60)
 
     def stop(self):
         self.running = False
@@ -68,7 +69,7 @@ class LogDetect(threading.Thread):
             if end_time is not None and record_timestamp > end_time:
                 continue
 
-            if event_id_param is not None and event_id == event_id_param:
+            if event_id_param is None or event_id == event_id_param:
                 r = {}
                 r['event_id'] = event_id
                 r['timestamp'] = record_timestamp.strftime("%Y-%m-%d %H:%M:%S")

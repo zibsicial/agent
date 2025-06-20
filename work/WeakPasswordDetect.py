@@ -16,7 +16,6 @@ class WeakPasswordDetect(threading.Thread):
     弱口令探测类（本地 + MySQL + 虚拟机 Redis/RabbitMQ）
     """
 
-    # 密码字典
     COMMON_PASSWORDS = [
         '123456', '12345678', '123456789', '1234567890', '111111', '000000', '123123', '20250606',
         'password', 'admin', 'root', 'qwerty', 'abc123', '1qaz2wsx', 'asdfgh',
@@ -28,9 +27,12 @@ class WeakPasswordDetect(threading.Thread):
         super().__init__()
         self.__mq = mq
         self.__data = data
+        self.finished = False  # 标志探测是否完成
+        self.found = False     # 标志是否发现弱口令
 
     def run(self):
         self.__weakPassword_discovery()
+        self.finished = True
 
     def __check_mysql_weak_password(self, ip="127.0.0.1", port=3306):
         weak_mysql = []
@@ -113,10 +115,8 @@ class WeakPasswordDetect(threading.Thread):
 
     def __brute_force_rabbitmq(self, ip, port, virtual_host='my_vhost'):
         user_list = ['guest', 'admin', 'root']
-        password_list = self.COMMON_PASSWORDS
-
         for username in user_list:
-            for password in password_list:
+            for password in self.COMMON_PASSWORDS:
                 try:
                     credentials = pika.PlainCredentials(username, password)
                     parameters = pika.ConnectionParameters(
@@ -141,7 +141,7 @@ class WeakPasswordDetect(threading.Thread):
         pythoncom.CoInitialize()
         weakPassword_list = []
 
-        # 本地账户弱口令
+        # 本地账户
         local_result = self.__check_local_account_weak_password()
         for user, pwd in local_result:
             weakPassword_list.append({
@@ -153,7 +153,7 @@ class WeakPasswordDetect(threading.Thread):
                 'port': 0
             })
 
-        # MySQL 弱口令
+        # MySQL
         mysql_result = self.__check_mysql_weak_password()
         for user, pwd in mysql_result:
             weakPassword_list.append({
@@ -165,7 +165,7 @@ class WeakPasswordDetect(threading.Thread):
                 'port': 3306
             })
 
-        # 虚拟机 Redis / RabbitMQ 弱口令扫描
+        # Redis & RabbitMQ in VM
         prefix = self.__get_network_prefix()
         if prefix:
             live_hosts = [f"{prefix}{i}" for i in range(2, 255) if self.__ping_host(f"{prefix}{i}")]
@@ -185,7 +185,7 @@ class WeakPasswordDetect(threading.Thread):
                         })
 
                 if self.__check_port(ip, 4568):
-                    result = self.__brute_force_rabbitmq(ip, 4568, virtual_host='my_vhost')  # ✅ 添加虚拟主机参数
+                    result = self.__brute_force_rabbitmq(ip, 4568, virtual_host='my_vhost')
                     if result:
                         user, pwd = result
                         weakPassword_list.append({
@@ -196,6 +196,9 @@ class WeakPasswordDetect(threading.Thread):
                             'ip': ip,
                             'port': 4568
                         })
+
+        if weakPassword_list:
+            self.found = True  # ✅ 找到了弱口令
 
         pythoncom.CoUninitialize()
         self.__mq.produce_weakPassword_data(json.dumps(weakPassword_list, ensure_ascii=False))
