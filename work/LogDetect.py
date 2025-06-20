@@ -1,3 +1,4 @@
+
 import threading
 import json
 import time
@@ -18,12 +19,17 @@ class LogDetect(threading.Thread):
         self.__start_time = start_time
         self.__end_time = end_time
         self.running = True
+        # 需要探查的所有事件ID
+        self.__event_ids = [
+            4624, 4634, 4647, 4648, 4720, 4722, 4723, 4724,
+            4726, 4725, 4738, 4730, 4737, 4739, 4762, 4732
+        ]
 
     def run(self):
         while self.running:
             logs = self.get_log_info(
                 self.__event_path,
-                event_id=4624,
+                event_ids=self.__event_ids,
                 start_time=self.__start_time,
                 end_time=self.__end_time
             )
@@ -35,13 +41,13 @@ class LogDetect(threading.Thread):
                 print(encrypted)
                 self.__mq.produce_log_info(encrypted)
                 print("发送日志成功！！！")
-            time.sleep(60)
+            time.sleep(60000)  # 每分钟同步一次
 
     def stop(self):
         self.running = False
 
     def get_log_info(self, event_path, **kwargs):
-        event_id_param = kwargs.get('event_id')
+        event_ids = kwargs.get('event_ids')
         start_time = self.safe_parse_time(kwargs.get('start_time'))
         end_time = self.safe_parse_time(kwargs.get('end_time'))
 
@@ -68,7 +74,8 @@ class LogDetect(threading.Thread):
             if end_time is not None and record_timestamp > end_time:
                 continue
 
-            if event_id_param is not None and event_id == event_id_param:
+
+            if event_ids is not None and event_id in event_ids:
                 r = {}
                 r['event_id'] = event_id
                 r['timestamp'] = record_timestamp.strftime("%Y-%m-%d %H:%M:%S")

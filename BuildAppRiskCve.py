@@ -25,10 +25,10 @@ APP_KEYWORDS = ['Office', 'Teams', 'Skype', 'Visual Studio', 'Edge', 'Microsoft 
 
 # 数据库配置
 DB_CONF = dict(
-    host="localhost",
+    host="47.92.120.180",
     port=3306,
-    user="root",
-    password="root",
+    user="user",
+    password="StrongPassword123!",
     db="threat_perception",
     charset="utf8mb4"
 )

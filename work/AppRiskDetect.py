@@ -34,10 +34,10 @@ class AppRiskDetect(threading.Thread):
         self.__data = data  # 平台传下来的信息，如 {"mac":"E0:0A:F6:AA:BB:CC"}
 
     DB_CONF = dict(
-        host="localhost",
+        host="47.92.120.180",
         port=3306,
-        user="root",
-        password="root",
+        user="user",
+        password="StrongPassword123!",
         database="threat_perception",
         cursorclass=pymysql.cursors.DictCursor
     )

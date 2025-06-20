@@ -13,9 +13,7 @@ from work.RiskDetect import RiskDetect
 
 class RabbitMQ:
     def __init__(self):
-
-        self.__host  = "192.168.133.133"
-
+        self.__host  = "47.92.120.180"
         self.__port  = "4568"
         self.__user  = "admin"
         self.__password = "20250606"
@@ -142,15 +140,21 @@ class RabbitMQ:
 
 
     #新建一个消费来自MQ的方法
-    def consume_queue(self,  queue_name):
-        """
-        消费者
-        :param queue_name: 队列名
-        :return:
-        """
-        # 消费队列
-        self.__channel.basic_consume(queue=queue_name,on_message_callback=self.__process_message, auto_ack=True)
-        # 开始监听
+
+    def consume_queue(self, queue_name):
+        # 确保队列存在
+        self.__channel.queue_declare(queue=queue_name, durable=True)
+        # 绑定到 agent_exchange，routing_key 可用队列名或自定义
+        self.__channel.queue_bind(
+            exchange='agent_exchange',
+            queue=queue_name,
+            routing_key=queue_name.replace("agent_", "").replace("_queue", "")
+        )
+        self.__channel.basic_consume(
+            queue=queue_name,
+            on_message_callback=self.__process_message,
+            auto_ack=True
+        )
         self.__channel.start_consuming()
 
 
