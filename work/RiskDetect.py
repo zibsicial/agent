@@ -40,9 +40,9 @@ class RiskDetect(threading.Thread):
 
 # === 配置数据库连接 ===
 db_config = {
-    "host": "localhost",
-    "user": "root",
-    "password": "040611",
+    "host": "47.92.120.180",
+    "user": "user",
+    "password": "StrongPassword123!",
     "database": "threat_perception",
     "charset": "utf8mb4"
 }

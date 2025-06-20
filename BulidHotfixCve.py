@@ -8,11 +8,12 @@ import calendar
 import re
 import pymysql
 
-YEAR = str(datetime.datetime.now().year)
+# YEAR = str(datetime.datetime.now().year)
+YEAR ="2025"
 TODAY = datetime.datetime.now().strftime('%Y-%m-%d')
 MONTH_IN_SHORT_EN = calendar.month_abbr[datetime.datetime.now().month]
 # THIS_MONTH_ID = YEAR + "-" + MONTH_IN_SHORT_EN
-THIS_MONTH_ID = YEAR + "-Mar"
+THIS_MONTH_ID = YEAR + "-May"
 
 print(THIS_MONTH_ID)
 print(YEAR)
@@ -22,7 +23,7 @@ base_url = "https://api.msrc.microsoft.com/"
 api_key = ""
 
 def get_cvrf_json():
-    db = pymysql.connect(host="localhost", port=3306, user="root",password="040611", db="threat_perception")
+    db = pymysql.connect(host="47.92.120.180", port=3306, user="user",password="StrongPassword123!", db="threat_perception")
     cur = db.cursor()
     url = f"{base_url}cvrf/{THIS_MONTH_ID}?api-Version={YEAR}"
     headers = {'api-key': api_key, 'Accept': 'application/json'}

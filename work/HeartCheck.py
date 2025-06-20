@@ -19,12 +19,12 @@ class HeartCheck(threading.Thread):
             "status": 1
         }
         #转换为JSON
-        status_data = json.dumps(status_data)
+        json_data = json.dumps(status_data)
 
         while True:
             try:
                 #发送心跳包
-                self.__mq.produce_status_info(status_data)
+                self.__mq.produce_status_info(json_data)
                 # print("发送心跳包:",status_data)
                 #休眠3秒
                 time.sleep(3)

@@ -13,7 +13,7 @@ import re
 import itertools
 
 # 你可以在这里手动调整月份
-THIS_MONTH_ID = "2024-Dec"
+THIS_MONTH_ID = "2025-May"
 TODAY = datetime.datetime.now().strftime("%Y-%m-%d")
 MSRC_API = f"https://api.msrc.microsoft.com/cvrf/{THIS_MONTH_ID}?api-Version=2024"
 
@@ -25,10 +25,10 @@ APP_KEYWORDS = ['Office', 'Teams', 'Skype', 'Visual Studio', 'Edge', 'Microsoft 
 
 # 数据库配置
 DB_CONF = dict(
-    host="localhost",
+    host="47.92.120.180",
     port=3306,
-    user="root",
-    password="040611",
+    user="user",
+    password="StrongPassword123!",
     db="threat_perception",
     charset="utf8mb4"
 )

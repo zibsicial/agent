@@ -34,10 +34,10 @@ class AppRiskDetect(threading.Thread):
         self.__data = data  # 平台传下来的信息，如 {"mac":"E0:0A:F6:AA:BB:CC"}
 
     DB_CONF = dict(
-        host="localhost",
+        host="47.92.120.180",
         port=3306,
-        user="root",
-        password="040611",
+        user="user",
+        password="StrongPassword123!",
         database="threat_perception",
         cursorclass=pymysql.cursors.DictCursor
     )
@@ -94,17 +94,18 @@ class AppRiskDetect(threading.Thread):
     def __app_risk_detect(self):
         """
         1. 扫描注册表软件列表，写入/更新 app 表
-        2. 本地对比 msrc_app_vuln，生成风险列表
-        3. 直接将风险列表加密后通过 MQ 上报（不落库 app_risk）
+        2. 本地对比 msrc_app_vuln，写入/更新 app_risk 表
+        3. 将本机 app_risk 记录加密发送 MQ
         """
-        print('开始探测 app 数据…')
+        print('开始探测 app 数据……')
 
         # ---------- ① 扫描注册表 ----------
         registry_key = winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
         )
-        software_list, total = [], winreg.QueryInfoKey(registry_key)[0]
+        software_list = []
+        total = winreg.QueryInfoKey(registry_key)[0]
 
         for i in range(total):
             try:
@@ -114,15 +115,21 @@ class AppRiskDetect(threading.Thread):
                 software = {
                     "macAddress": self.__data["macAddress"],
                     "displayName": winreg.QueryValueEx(sub_key, "DisplayName")[0],
-                    "installLocation": winreg.QueryValueEx(sub_key, "InstallLocation")[0] if
-                                        "InstallLocation" in winreg.QueryInfoKey(sub_key) else "",
-                    "uninstallString": winreg.QueryValueEx(sub_key, "UninstallString")[0] if
-                                        "UninstallString" in winreg.QueryInfoKey(sub_key) else "",
+                    "installLocation": (
+                        winreg.QueryValueEx(sub_key, "InstallLocation")[0]
+                        if "InstallLocation" in winreg.QueryInfoKey(sub_key)
+                        else ""
+                    ),
+                    "uninstallString": (
+                        winreg.QueryValueEx(sub_key, "UninstallString")[0]
+                        if "UninstallString" in winreg.QueryInfoKey(sub_key)
+                        else ""
+                    ),
                 }
                 software["appVersion"] = self.extract_version(software["displayName"])
                 software_list.append(software)
             except WindowsError:
-                continue  # 子键字段缺失
+                continue  # 子键缺字段，跳过
 
         print(f"本机扫描到应用 {len(software_list)} 条")
 
@@ -130,77 +137,124 @@ class AppRiskDetect(threading.Thread):
         conn = pymysql.connect(**self.DB_CONF)
         try:
             with conn.cursor() as cur:
+                sql_app = """
+                INSERT INTO app (mac_address, display_name, install_location, uninstall_string)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    install_location = VALUES(install_location),
+                    uninstall_string = VALUES(uninstall_string)
+                """
                 cur.executemany(
-                    """
-                    INSERT INTO app (mac_address, display_name, install_location, uninstall_string)
-                    VALUES (%s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE
-                      install_location = VALUES(install_location),
-                      uninstall_string = VALUES(uninstall_string)
-                    """,
+                    sql_app,
                     [
                         (
-                            s["macAddress"], s["displayName"],
-                            s["installLocation"], s["uninstallString"]
-                        ) for s in software_list
-                    ]
+                            s["macAddress"],
+                            s["displayName"],
+                            s["installLocation"],
+                            s["uninstallString"],
+                        )
+                        for s in software_list
+                    ],
                 )
                 conn.commit()
                 print(f"写入/更新 app 表 {cur.rowcount} 行")
 
-                # 取出全部 MSRC 漏洞记录
-                cur.execute("""
+                # ---------- ③ 读取 msrc_app_vuln ----------
+                cur.execute(
+                    """
                     SELECT cve_id, title, product_name, kb_list,
                            cvss_score, fixed_before_version
                     FROM msrc_app_vuln
-                """)
+                    """
+                )
                 vuln_list = cur.fetchall()
         finally:
             conn.close()
 
-        # ---------- ③ 本地比对生成风险列表 ----------
+        # ---------- ④ 本地比对，生成风险列表 ----------
         risk_rows, dedup = [], set()
         for sw in software_list:
             app_ver = sw["appVersion"]
 
             for v in vuln_list:
+                # 双重匹配：英文规约优先，回退原始字符串（中文也能比）
                 if not self.is_app_match(sw["displayName"], v["product_name"] or ""):
                     continue
 
-                # 版本号校验：若已是修复版本则跳过
+                # 版本号判定
                 fix_before = v["fixed_before_version"]
-                if fix_before and app_ver and self.compare_version(app_ver, fix_before) >= 0:
-                    continue
+                if fix_before and app_ver:
+                    if self.compare_version(app_ver, fix_before) >= 0:
+                        continue  # 已是修复版本
 
+                # 去重（mac + app + cve）
                 key = f'{sw["macAddress"]}::{sw["displayName"]}::{v["cve_id"]}'
                 if key in dedup:
                     continue
                 dedup.add(key)
 
                 risk_rows.append(
-                    dict(
-                        macAddress = sw["macAddress"],
-                        appName    = sw["displayName"],
-                        appVersion = app_ver,
-                        productName= v["product_name"],
-                        cveId      = v["cve_id"],
-                        title      = v["title"],
-                        kbList     = v["kb_list"],
-                        cvssScore  = v["cvss_score"],
-                        reportTime = datetime.now().isoformat(sep=' ', timespec='seconds')
+                    (
+                        sw["macAddress"],
+                        sw["displayName"],
+                        app_ver,
+                        v["product_name"],
+                        v["cve_id"],
+                        v["title"],
+                        v["kb_list"],
+                        v["cvss_score"],
+                        datetime.now(),
                     )
                 )
 
         print(f"命中风险 {len(risk_rows)} 条")
 
-        # ---------- ④ 直接加密并上报 MQ ----------
-        #（即便 risk_rows 为空，也可选择发送空列表保持幂等）
-        app_risk_json = json.dumps(risk_rows, ensure_ascii=False)
-        encrypted_app_risk_json = EncryptUtil.encrypt_json(app_risk_json, "thisIsASecretKey")
-        print(app_risk_json)
-        print(encrypted_app_risk_json)
-        self.__mq.produce_appRisk_info(encrypted_app_risk_json)
-        print(f"已上报风险记录 {len(risk_rows)} 条（已加密）")
+        # ---------- ⑤ 写入 / 更新 app_risk ----------
+        if risk_rows:
+            conn = pymysql.connect(**self.DB_CONF)
+            try:
+                with conn.cursor() as cur:
+                    sql_risk = """
+                    INSERT INTO app_risk
+                      (mac_address, app_name, app_version, product_name,
+                       cve_id, title, kb_list, cvss_score, report_time)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON DUPLICATE KEY UPDATE
+                      report_time = VALUES(report_time)
+                    """
+                    cur.executemany(sql_risk, risk_rows)
+                    conn.commit()
+                    print(f"写入/更新 app_risk 表 {cur.rowcount} 行")
+            finally:
+                conn.close()
+        else:
+            print("本机暂无新增风险记录")
+
+        # ---------- ⑥ 查询本机 app_risk 并上报 ----------
+        conn = pymysql.connect(**self.DB_CONF)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT mac_address, app_name, app_version, product_name,
+                           cve_id, title, kb_list, cvss_score, report_time
+                    FROM app_risk
+                    WHERE mac_address = %s
+                    """,
+                    (self.__data["macAddress"],),
+                )
+                send_rows = cur.fetchall()
+        finally:
+            conn.close()
+
+        if send_rows:
+            app_risk_json = json.dumps(send_rows, ensure_ascii=False, default=str)
+            encrypted = EncryptUtil.encrypt_json(app_risk_json, "thisIsASecretKey")
+            self.__mq.produce_appRisk_info(encrypted)
+            print(f"已上报风险记录 {len(send_rows)} 条")
+        else:
+            print("最终仍未发现风险记录可上报")
 
         print("app 数据探测结束！")
+
 
