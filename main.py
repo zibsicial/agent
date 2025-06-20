@@ -32,9 +32,7 @@ if __name__ == '__main__':
     heartcheck = HeartCheck(mac_address,rabbitmq)
     heartcheck.start()
 
-    # rabbitmq = RabbitMQ()
-    # log_detect = LogDetect(rabbitmq, mac_address)
-    # log_detect.start()
+
 
 
 
