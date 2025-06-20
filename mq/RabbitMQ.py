@@ -81,14 +81,19 @@ class RabbitMQ:
             #线程类直接start
             appRiskDetect.start()
         elif data['type'] == 'weakPassword':
-            # 补丁探测
             weakPassword_detect = WeakPasswordDetect(self, data)
             weakPassword_detect.start()
+            weakPassword_detect.join()
+
+            if weakPassword_detect.found:
+                print("✅ 已发现弱口令！")
+            else:
+                print("❌ 没有发现弱口令")
 
         elif data['type'] == 'log':
             # 登录日志
             # data 里应包含 mac_address、start_time、end_time
-            mac_address = data.get('mac_address')
+            mac_address = data.get('macAddress')
             start_time = data.get('start_time')
             end_time = data.get('end_time')
             log_detect = LogDetect(self, mac_address, start_time, end_time)

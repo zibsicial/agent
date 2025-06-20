@@ -41,7 +41,7 @@ class LogDetect(threading.Thread):
                 print(encrypted)
                 self.__mq.produce_log_info(encrypted)
                 print("发送日志成功！！！")
-            time.sleep(60000)  # 每分钟同步一次
+            # 每分钟同步一次
 
     def stop(self):
         self.running = False
