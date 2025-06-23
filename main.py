@@ -32,10 +32,6 @@ if __name__ == '__main__':
     heartcheck = HeartCheck(mac_address,rabbitmq)
     heartcheck.start()
 
-
-
-
-
     print("Agent准备接收信息... ")
     rabbitmq = RabbitMQ()
     recevie_cmd = ReceiveCmd(rabbitmq,mac_address)

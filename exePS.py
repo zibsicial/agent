@@ -8,5 +8,11 @@ result = subprocess.run(['powershell', '-Command', ps_command],
 stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
 
 # 打印输出和错误信息
-print(result.stdout) # 输出信息
-print(result.stderr) # 错误信息
+print("======================================================="
+      "输出信息"
+      "======================================================="
+        +result.stdout) # 输出信息
+print("======================================================="
+      "错误信息"
+      "======================================================="
+      +result.stderr) # 错误信息

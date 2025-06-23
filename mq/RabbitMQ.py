@@ -104,7 +104,9 @@ class RabbitMQ:
             end_time = data.get('end_time')
             log_detect = LogDetect(self, mac_address, start_time, end_time)
             log_detect.start()
+
         elif data['type'] == 'baseline':
+            print("开始执行基线检测")
             baseline_detect = BaseLineDetect(self, data)
             baseline_detect.start()
 
