@@ -69,8 +69,8 @@ class BaseLineDetect(threading.Thread):
 
         # 拼接 JSON 对象
         baseline_obj = {
-            "hostName": host_name,
             "macAddress": mac_address,
+            "hostName": host_name,
             "baseline_result": baseline_result
         }
 
