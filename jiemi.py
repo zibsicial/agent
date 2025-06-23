@@ -1,3 +1,0 @@
-from util.EncryptUtil import EncryptUtil
-
-print(EncryptUtil.decrypt_json("0jucTCci5Q+7H/8ckMkiqvOym9RWhnBKgf80MrguH+Qux4F4AG0onDjnLkiF0ziq2Kc4zRxrS7uil/1J+qmV01k8G2J9AntVn9WbZtXektxE/ThtxI4lYcXuQC4Fh6MNmKqihifhbZUZqjCuaucLbzkRDIyIjd8LUgB3p05WRLe2SkAVU+gkZHmSmyAI9T3ehR9JvEw8yPeLnzbaNG9UVW60zkr8Mvkyg+0xQFAr/7hjQ1k577lLHPhOKruxPcwX5JAwlOJETHznCDVylFkcR3SB5cNMht+HZ/8OfXNXMkI=","thisIsASecretKey"))

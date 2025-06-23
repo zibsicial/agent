@@ -4,6 +4,8 @@
 import subprocess
 import threading
 import json
+import uuid
+
 import pythoncom
 import wmi
 from util.EncryptUtil import EncryptUtil
@@ -32,17 +34,10 @@ class BaseLineDetect(threading.Thread):
         except Exception as e:
             host_name = f"获取失败: {e}"
 
-        # 采集第一个启用的MAC地址
-        try:
-            mac_address = next(
-                nic.MACAddress for nic in c.Win32_NetworkAdapterConfiguration()
-                if nic.IPEnabled and nic.MACAddress
-            )
-        except Exception as e:
-            mac_address = f"获取失败: {e}"
+        mac_address = ':'.join(("%012X" % uuid.getnode())[i:i + 2] for i in range(0, 12, 2))
 
         # 定义PowerShell命令
-        ps_command = 'powershell -ExecutionPolicy bypass -File ../ps/windows.ps1'
+        ps_command = 'powershell -ExecutionPolicy bypass -File ./ps/windows.ps1'
         result = subprocess.run(['powershell', '-Command', ps_command],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -56,7 +51,7 @@ class BaseLineDetect(threading.Thread):
 
         # 提取 baseline_list 内容
         start_marker = "[INFO] [-] 正在导出当前系统策略配置文件 config.cfg......"
-        end_marker = "[INFO] - Windows Server 安全配置策略基线检测脚本已执行完毕,详细见桌面.txt文件"
+        end_marker = "[INFO] - Windows Server 安全配置策略基线检测脚本已执行完毕"
         try:
             start_index = full_output.index(start_marker) + len(start_marker)
             end_index = full_output.index(end_marker)
@@ -77,7 +72,7 @@ class BaseLineDetect(threading.Thread):
         baseline_data = json.dumps(baseline_obj, ensure_ascii=False, indent=2)
         print("=======================================================")
         print(baseline_data)
-        encrypt_baseline_data = EncryptUtil.encrypt(baseline_data)
+        encrypt_baseline_data = EncryptUtil.encrypt_json(baseline_data, "thisIsASecretKey")
         print("=======================================================")
         print(encrypt_baseline_data)
         self.mq.produce_baseline_data(encrypt_baseline_data)
