@@ -51,6 +51,5 @@ class HotfixDetect(threading.Thread):
         encrypted_data = EncryptUtil.encrypt_json(data, "thisIsASecretKey")
         print("加密后的数据:", encrypted_data)
         self.__mq.produce_hotfix_data(encrypted_data)
-        # 发送到队列
-        #self.__mq.produce_hotfix_data(data)
+
         print("补丁安全发现结束")

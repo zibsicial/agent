@@ -2,21 +2,25 @@ import json
 
 import pika
 
+from util.EncryptUtil import EncryptUtil
 from work.AppRiskDetect import AppRiskDetect
 from work.AssetsDetect import AssetsDetect
-from util.EncryptUtil import EncryptUtil
 from work.HotfixDetect import HotfixDetect
 from work.LogDetect import LogDetect
+from work.RiskDetect import RiskDetect
 from work.VulnerabilityDetect import VulnerabilityDetect
 from work.WeakPasswordDetect import WeakPasswordDetect
-from work.RiskDetect import RiskDetect
+from work.BaseLineDetect import BaseLineDetect
+
 
 class RabbitMQ:
     def __init__(self):
-        self.__host  = "47.92.120.180"
+        # self.__host  = "47.92.120.180"
+        self.__host  = "192.168.198.128"
         self.__port  = "4568"
         self.__user  = "admin"
-        self.__password = "20250606"
+        self.__password = "20250605"
+        # self.__password = "20250606"
         self.__virtual_host = "my_vhost"
         self.__channel = ""
         self.__connection = ""
@@ -59,6 +63,7 @@ class RabbitMQ:
         except Exception:
             # 如果不是 JSON，说明是加密数据，先解密再解析
             decrypted = EncryptUtil.decrypt_json(msg_str, "thisIsASecretKey")
+            print("解密后的数据:", decrypted)
             data = json.loads(decrypted)
 
         if data['type'] == 'assets':
@@ -99,6 +104,10 @@ class RabbitMQ:
             end_time = data.get('end_time')
             log_detect = LogDetect(self, mac_address, start_time, end_time)
             log_detect.start()
+        elif data['type'] == 'baseline':
+            baseline_detect = BaseLineDetect(self, data)
+            baseline_detect.start()
+
 
 
 
@@ -256,4 +265,15 @@ class RabbitMQ:
         """
         exchange = 'sysinfo_exchange'
         routing_key = 'vulnerability'
+        self.__my_producer(exchange, routing_key, data)
+
+    def produce_baseline_data(self, data):
+
+        """
+        基线核查数据上报
+        :param data:
+        :return:
+        """
+        exchange = 'sysinfo_exchange'
+        routing_key = 'baseline'
         self.__my_producer(exchange, routing_key, data)
