@@ -8,30 +8,28 @@ Author: Joey_Aaron
 
 import threading
 import json
-import winreg
+import platform
 import re
 import pymysql
-import cryptography
-import pythoncom
-import wmi
 from datetime import datetime
 from packaging import version
-
-
-
 from util.EncryptUtil import EncryptUtil
+# Windows 专用库
+if platform.system() == "Windows":
+    import winreg
+    import pythoncom
+    import wmi
 
 
-
-
-
-# ======================== 线程类 ============================
 class AppRiskDetect(threading.Thread):
-
+    """
+    应用程序风险检测类，支持 Windows 和 Linux
+    """
     def __init__(self, mq, data):
         super().__init__()
         self.__mq = mq      # 消息队列对象，须实现 produce_appRisk_info(json_str)
         self.__data = data  # 平台传下来的信息，如 {"mac":"E0:0A:F6:AA:BB:CC"}
+        self.__is_windows = platform.system() == "Windows"
 
     DB_CONF = dict(
         host="47.92.120.180",
@@ -84,52 +82,19 @@ class AppRiskDetect(threading.Thread):
 
         return False
 
-
-    # --------------------- 线程入口 --------------------------
     def run(self):
         self.__app_risk_detect()
 
-
-
     def __app_risk_detect(self):
         """
-        1. 扫描注册表软件列表，写入/更新 app 表
-        2. 本地对比 msrc_app_vuln，写入/更新 app_risk 表
-        3. 将本机 app_risk 记录加密发送 MQ
+        应用程序风险检测入口
         """
-        print('开始探测 app 数据……')
+        print('开始探测应用程序数据……')
 
-        # ---------- ① 扫描注册表 ----------
-        registry_key = winreg.OpenKey(
-            winreg.HKEY_LOCAL_MACHINE,
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
-        )
-        software_list = []
-        total = winreg.QueryInfoKey(registry_key)[0]
-
-        for i in range(total):
-            try:
-                sub_key_name = winreg.EnumKey(registry_key, i)
-                sub_key = winreg.OpenKey(registry_key, sub_key_name)
-
-                software = {
-                    "macAddress": self.__data["macAddress"],
-                    "displayName": winreg.QueryValueEx(sub_key, "DisplayName")[0],
-                    "installLocation": (
-                        winreg.QueryValueEx(sub_key, "InstallLocation")[0]
-                        if "InstallLocation" in winreg.QueryInfoKey(sub_key)
-                        else ""
-                    ),
-                    "uninstallString": (
-                        winreg.QueryValueEx(sub_key, "UninstallString")[0]
-                        if "UninstallString" in winreg.QueryInfoKey(sub_key)
-                        else ""
-                    ),
-                }
-                software["appVersion"] = self.extract_version(software["displayName"])
-                software_list.append(software)
-            except WindowsError:
-                continue  # 子键缺字段，跳过
+        if self.__is_windows:
+            software_list = self.__detect_windows_apps()
+        else:
+            software_list = self.__detect_linux_apps()
 
         print(f"本机扫描到应用 {len(software_list)} 条")
 
@@ -150,8 +115,8 @@ class AppRiskDetect(threading.Thread):
                         (
                             s["macAddress"],
                             s["displayName"],
-                            s["installLocation"],
-                            s["uninstallString"],
+                            s.get("installLocation", ""),
+                            s.get("uninstallString", ""),
                         )
                         for s in software_list
                     ],
@@ -177,17 +142,14 @@ class AppRiskDetect(threading.Thread):
             app_ver = sw["appVersion"]
 
             for v in vuln_list:
-                # 双重匹配：英文规约优先，回退原始字符串（中文也能比）
                 if not self.is_app_match(sw["displayName"], v["product_name"] or ""):
                     continue
 
-                # 版本号判定
                 fix_before = v["fixed_before_version"]
                 if fix_before and app_ver:
                     if self.compare_version(app_ver, fix_before) >= 0:
                         continue  # 已是修复版本
 
-                # 去重（mac + app + cve）
                 key = f'{sw["macAddress"]}::{sw["displayName"]}::{v["cve_id"]}'
                 if key in dedup:
                     continue
@@ -250,11 +212,72 @@ class AppRiskDetect(threading.Thread):
         if send_rows:
             app_risk_json = json.dumps(send_rows, ensure_ascii=False, default=str)
             encrypted = EncryptUtil.encrypt_json(app_risk_json, "thisIsASecretKey")
-            self.__mq.produce_appRisk_info(encrypted)
+            from mq.RabbitMQ import RabbitMQ
+            mq = RabbitMQ()
+            mq.produce_appRisk_info(encrypted)
             print(f"已上报风险记录 {len(send_rows)} 条")
         else:
             print("最终仍未发现风险记录可上报")
 
-        print("app 数据探测结束！")
+        print("应用程序数据探测结束！")
 
+    def __detect_windows_apps(self):
+        """
+        Windows 应用程序检测
+        """
+        registry_key = winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+        )
+        software_list = []
+        total = winreg.QueryInfoKey(registry_key)[0]
 
+        for i in range(total):
+            try:
+                sub_key_name = winreg.EnumKey(registry_key, i)
+                sub_key = winreg.OpenKey(registry_key, sub_key_name)
+
+                software = {
+                    "macAddress": self.__data["macAddress"],
+                    "displayName": winreg.QueryValueEx(sub_key, "DisplayName")[0],
+                    "installLocation": (
+                        winreg.QueryValueEx(sub_key, "InstallLocation")[0]
+                        if "InstallLocation" in winreg.QueryInfoKey(sub_key)
+                        else ""
+                    ),
+                    "uninstallString": (
+                        winreg.QueryValueEx(sub_key, "UninstallString")[0]
+                        if "UninstallString" in winreg.QueryInfoKey(sub_key)
+                        else ""
+                    ),
+                }
+                software["appVersion"] = self.extract_version(software["displayName"])
+                software_list.append(software)
+            except WindowsError:
+                continue  # 子键缺字段，跳过
+
+        return software_list
+
+    def __detect_linux_apps(self):
+        """
+        Linux 应用程序检测
+        """
+        software_list = []
+        try:
+            result = subprocess.run(["dpkg-query", "-W", "-f=${Package} ${Version}\n"], stdout=subprocess.PIPE, text=True)
+            for line in result.stdout.splitlines():
+                parts = line.split()
+                if len(parts) == 2:
+                    software_list.append({
+                        "macAddress": self.__data["macAddress"],
+                        "displayName": parts[0],
+                        "appVersion": parts[1],
+                        "installLocation": "",
+                        "uninstallString": ""
+                    })
+        except FileNotFoundError:
+            print("[!] dpkg-query 未找到，无法检测 Linux 应用程序")
+        except Exception as e:
+            print(f"[!] Linux 应用程序检测失败: {e}")
+
+        return software_list

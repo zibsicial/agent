@@ -1,6 +1,5 @@
 import os
 import time
-from work.LogDetect import LogDetect
 from system.SystemInfo import SystemInfo
 from mq.RabbitMQ import RabbitMQ
 from work.HeartCheck import HeartCheck
@@ -8,35 +7,32 @@ from work.ReceiveCmd import ReceiveCmd
 
 
 if __name__ == '__main__':
-
     print("Agent启动................")
     print("Agent开始获取系统信息.....")
-
     #实例化这个类
     sys_info = SystemInfo()
     sys_info_data = sys_info.get_info()
-
-
     print("Agent开始同步系统信息.....")
 
     #实例化MQ
     rabbitmq = RabbitMQ()
     rabbitmq.produce_sysinfo(sys_info_data)
     print(sys_info_data)
-
     print("Agent同步系统信息结束.....")
     #获取MAC地址
+
     mac_address = sys_info.get_mac_address()
     #实例化心跳检测类
     print("Agent 启动心跳线程...")
     heartcheck = HeartCheck(mac_address,rabbitmq)
     heartcheck.start()
-
-
-
-
-
     print("Agent准备接收信息... ")
+
+
+    if sys_info.is_windows():
+        print("当前系统为 Windows，加载 Windows 日志探测模块...")
+    elif sys_info.is_linux():
+        print("当前系统为 Linux，加载 Linux 日志探测模块...")
     rabbitmq = RabbitMQ()
     recevie_cmd = ReceiveCmd(rabbitmq,mac_address)
     recevie_cmd.start()
