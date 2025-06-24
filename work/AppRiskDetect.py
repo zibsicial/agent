@@ -32,10 +32,14 @@ class AppRiskDetect(threading.Thread):
         self.__is_windows = platform.system() == "Windows"
 
     DB_CONF = dict(
-        host="47.92.120.180",
+
+        # host="47.92.120.180",
+        host="127.0.0.1",
         port=3306,
-        user="user",
-        password="StrongPassword123!",
+        # user="user",
+        user="root",
+        # password="StrongPassword123!",
+        password="040611",
         database="threat_perception",
         cursorclass=pymysql.cursors.DictCursor
     )
