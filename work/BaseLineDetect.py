@@ -5,7 +5,7 @@ import subprocess
 import threading
 import json
 import uuid
-
+import socket
 import pythoncom
 import wmi
 from util.EncryptUtil import EncryptUtil
@@ -29,11 +29,9 @@ class BaseLineDetect(threading.Thread):
         c = wmi.WMI()
 
         # 采集主机名
-        try:
-            host_name = c.Win32_ComputerSystem()[0].Name
-        except Exception as e:
-            host_name = f"获取失败: {e}"
+        host_name = socket.gethostname()
 
+        # 采集MAC
         mac_address = ':'.join(("%012X" % uuid.getnode())[i:i + 2] for i in range(0, 12, 2))
 
         # 定义PowerShell命令
