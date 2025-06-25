@@ -8,6 +8,8 @@ import uuid
 import socket
 import pythoncom
 import wmi
+import sys
+import os
 from util.EncryptUtil import EncryptUtil
 
 class BaseLineDetect(threading.Thread):
@@ -34,8 +36,18 @@ class BaseLineDetect(threading.Thread):
         # 采集MAC
         mac_address = ':'.join(("%012X" % uuid.getnode())[i:i + 2] for i in range(0, 12, 2))
 
-        # 定义PowerShell命令
-        ps_command = 'powershell -ExecutionPolicy bypass -File ./ps/windows.ps1'
+        # 获取打包后运行或源码运行的基目录
+        if getattr(sys, 'frozen', False):
+            base_dir = sys._MEIPASS
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # 拼接 PowerShell 脚本的绝对路径
+        script_path = os.path.join(base_dir, "ps", "windows.ps1")
+
+        # 构建 PowerShell 命令
+        ps_command = f'powershell -ExecutionPolicy bypass -File "{script_path}"'
+
         result = subprocess.run(['powershell', '-Command', ps_command],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
