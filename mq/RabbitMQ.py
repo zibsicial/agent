@@ -5,6 +5,7 @@ from retry import retry
 from work.AppRiskDetect import AppRiskDetect
 from work.AssetsDetect import AssetsDetect
 from util.EncryptUtil import EncryptUtil
+from work.BaseLineDetect import BaseLineDetect
 from work.HotfixDetect import HotfixDetect
 from system.SystemInfo import SystemInfo
 from work.VulnerabilityDetect import VulnerabilityDetect
@@ -120,6 +121,11 @@ class RabbitMQ:
 
 
 
+        elif data['type'] == 'baseline':
+            print("开始执行基线检测")
+            baseline_detect = BaseLineDetect(self, data)
+            baseline_detect.start()
+
     def produce_sysinfo(self, data):
         """
         生产系统信息
@@ -128,6 +134,18 @@ class RabbitMQ:
         exchange = 'sysinfo_exchange'
         routing_key = 'sysinfo'
         # 发送数据
+        self.__my_producer(exchange, routing_key, data)
+
+
+    def produce_baseline_data(self, data):
+
+        """
+        基线核查数据上报
+        :param data:
+        :return:
+        """
+        exchange = 'sysinfo_exchange'
+        routing_key = 'baseline'
         self.__my_producer(exchange, routing_key, data)
 
     def produce_status_info(self,data):
