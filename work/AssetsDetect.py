@@ -413,5 +413,5 @@ class AssetsDetect(threading.Thread):
 
         app_data = json.dumps(software_list)
         encrypted_app_data = EncryptUtil.encrypt_json(app_data, "thisIsASecretKey")
-        print(app_data)
+        print("已探测应用："+ app_data)
         self.__mq.produce_app_info(encrypted_app_data)

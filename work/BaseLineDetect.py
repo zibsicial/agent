@@ -5,6 +5,7 @@ import subprocess
 import threading
 import json
 import uuid
+import socket
 import platform
 import os
 

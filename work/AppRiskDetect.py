@@ -5,7 +5,7 @@ AppRiskDetect.py
 将风险结果通过 MQ 上报。
 Author: Joey_Aaron
 """
-
+import subprocess
 import threading
 import json
 import platform
