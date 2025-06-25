@@ -82,7 +82,15 @@ class BaseLineDetect(threading.Thread):
             mac_address = open('/sys/class/net/eth0/address').read().strip()
         except Exception:
             mac_address = "未知"
-        sh_path = './ps/test.sh'
+
+        # 兼容 pyinstaller 打包后的路径
+        if getattr(sys, 'frozen', False):
+            base_dir = sys._MEIPASS
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        sh_path = os.path.join(base_dir, 'ps', 'test.sh')
+
         # 自动赋予可执行权限
         if not os.access(sh_path, os.X_OK):
             os.chmod(sh_path, 0o755)
